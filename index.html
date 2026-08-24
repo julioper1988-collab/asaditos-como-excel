@@ -139,7 +139,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}.prod-name{font
   <div class="auth-box">
     <h2>Asaditos El Mejor</h2>
     <p>Iniciá sesión para cargar y sincronizar los datos guardados en Supabase.</p>
-    <div class="field"><label>Correo</label><input id="loginEmail" type="email" autocomplete="username" placeholder="tu@correo.com"></div>
+    <div class="field"><label>Usuario</label><input id="loginUser" type="text" autocomplete="username" placeholder="julio"></div>
     <div class="field"><label>Contraseña</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••"></div>
     <button class="btn primary" id="loginBtn" style="width:100%">Ingresar</button>
     <div class="auth-error" id="loginError"></div>
@@ -187,7 +187,6 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}.prod-name{font
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const KEY='asaditos_excel_moderno_v1';
 // Pegá aquí los datos de Project Settings > API de tu proyecto Supabase.
@@ -198,9 +197,10 @@ const DENOM=[100000,50000,20000,10000,5000,2000,1000,500,100,50];
 const DEFAULTS=[
  ['ASADITO CARNE',5000,3500],['ASADITO POLLO',5000,3200],['ASADITO CERDO',5000,3300],['CHORIQUEZO',7000,4800],['PICANTE BESITO',5000,3300],['ALITA DE POLLO',5000,3200],['PARRILLERO',5000,3500],['BUTIFARRA',6000,4200],['MORCILLA',6000,4000]
 ];
+const API_URL=SUPABASE_URL+'/functions/v1/asaditos-v2-api';
+const SESSION_KEY='asaditos_v2_session_token';
 const cloudConfigured=SUPABASE_URL.startsWith('https://')&&!SUPABASE_URL.includes('PEGA_AQUI')&&!SUPABASE_PUBLISHABLE_KEY.includes('PEGA_AQUI');
-const sb=cloudConfigured?window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}):null;
-let db=loadLocal(); let fecha=todayISO(); let currentUser=null; let cloudTimer=null; let cloudLoaded=false; let cloudWriting=false;
+let db=loadLocal(); let fecha=todayISO(); let currentUser=null; let sessionToken=localStorage.getItem(SESSION_KEY)||''; let cloudTimer=null; let cloudLoaded=false; let cloudWriting=false;
 lockLegacyClosedSnapshots();
 function todayISO(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
 function money(n){return '₲ '+Math.round(n||0).toLocaleString('es-PY')}
@@ -209,43 +209,38 @@ function freshDb(){return {products:DEFAULTS.map(x=>({id:uid(),name:x[0],price:x
 function loadLocal(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x&&x.products&&x.days)return x}catch(e){} return freshDb()}
 function saveLocal(){localStorage.setItem(KEY,JSON.stringify(db))}
 function setSyncState(text,kind=''){saveState.textContent=text;saveState.classList.remove('sync-ok','sync-bad');if(kind)saveState.classList.add(kind)}
+async function apiCall(action,payload={}){
+  const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify({action,token:sessionToken,...payload})});
+  let out={};try{out=await res.json()}catch(e){}
+  if(!res.ok)throw new Error(out.error||'Error de conexión');
+  return out;
+}
 function save(){
   saveLocal();
-  if(currentUser&&cloudLoaded){setSyncState('Guardando…');clearTimeout(cloudTimer);cloudTimer=setTimeout(()=>flushCloudSave(),350)}
+  if(sessionToken&&cloudLoaded){setSyncState('Guardando…');clearTimeout(cloudTimer);cloudTimer=setTimeout(()=>flushCloudSave(),350)}
   else setSyncState('Guardado local');
 }
 async function flushCloudSave(){
-  if(!sb||!currentUser||!cloudLoaded||cloudWriting)return;
+  if(!sessionToken||!cloudLoaded||cloudWriting)return;
   cloudWriting=true; setSyncState('Sincronizando…');
-  try{
-    const {error}=await sb.from('asaditos_v2_state').upsert({user_id:currentUser.id,data:db,updated_at:new Date().toISOString()},{onConflict:'user_id'});
-    if(error)throw error;
-    setSyncState('Supabase ✓','sync-ok');
-  }catch(err){console.error(err);setSyncState('Error al sincronizar','sync-bad')}
+  try{await apiCall('save',{data:db});setSyncState('Supabase ✓','sync-ok')}
+  catch(err){console.error(err);setSyncState('Error al sincronizar','sync-bad')}
   finally{cloudWriting=false}
 }
-async function loadCloudForUser(user){
-  currentUser=user; cloudLoaded=false; setSyncState('Cargando Supabase…');
+async function loadCloud(){
+  cloudLoaded=false; setSyncState('Cargando Supabase…');
   const local=loadLocal();
-  const {data,error}=await sb.from('asaditos_v2_state').select('data,updated_at').eq('user_id',user.id).maybeSingle();
-  if(error){console.error(error);setSyncState('Error de Supabase','sync-bad');throw error}
-  if(data&&data.data&&data.data.products&&data.data.days){
-    db=data.data; saveLocal();
-  }else{
-    db=local&&local.products&&local.days?local:freshDb(); saveLocal();
-    const {error:upErr}=await sb.from('asaditos_v2_state').upsert({user_id:user.id,data:db,updated_at:new Date().toISOString()},{onConflict:'user_id'});
-    if(upErr)throw upErr;
-  }
-  lockLegacyClosedSnapshots(); cloudLoaded=true; accountBtn.textContent='Salir'; authScreen.classList.remove('on'); setSyncState('Supabase ✓','sync-ok'); render();
+  const out=await apiCall('load');
+  currentUser=out.username||'julio';
+  if(out.data&&out.data.products&&out.data.days){db=out.data;saveLocal()}
+  else{db=local&&local.products&&local.days?local:freshDb();saveLocal();await apiCall('save',{data:db})}
+  lockLegacyClosedSnapshots();cloudLoaded=true;accountBtn.textContent='Salir';authScreen.classList.remove('on');setSyncState('Supabase ✓','sync-ok');render();
 }
 async function initCloud(){
   if(!cloudConfigured){accountBtn.textContent='Configurar Supabase';setSyncState('Falta configurar Supabase','sync-bad');render();return}
-  const {data:{session}}=await sb.auth.getSession();
-  if(session?.user){try{await loadCloudForUser(session.user)}catch(e){authScreen.classList.add('on');loginError.textContent='No se pudo cargar la base. Revisá la tabla y las políticas RLS.'}}
-  else{render();authScreen.classList.add('on');setSyncState('Iniciá sesión')}
-  sb.auth.onAuthStateChange((event,session)=>{
-    if(event==='SIGNED_OUT'){currentUser=null;cloudLoaded=false;accountBtn.textContent='Cuenta';setSyncState('Sesión cerrada');authScreen.classList.add('on')}
-  });
+  render();
+  if(sessionToken){try{await loadCloud();return}catch(e){console.warn(e);localStorage.removeItem(SESSION_KEY);sessionToken=''}}
+  authScreen.classList.add('on');setSyncState('Iniciá sesión');
 }
 function lockLegacyClosedSnapshots(){
   // Al actualizar esta versión, fijamos precio/costo de los días ya cerrados para que no cambien después.
@@ -576,20 +571,20 @@ confirmMoveDate.onclick=()=>{
 exportBtn.onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}));a.download='asaditos-respaldo-'+todayISO()+'.json';a.click()};
 importFile.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.products||!x.days)throw 0;if(confirm('Esto reemplaza los datos de esta versión de prueba. ¿Seguir?')){db=x;save();render()}}catch(err){alert('Archivo no válido')}};r.readAsText(f);e.target.value=''};
 loginBtn.onclick=async()=>{
-  if(!sb){loginError.textContent='Primero configurá SUPABASE_URL y SUPABASE_PUBLISHABLE_KEY en este archivo.';return}
-  const email=loginEmail.value.trim(),password=loginPassword.value;
-  if(!email||!password){loginError.textContent='Ingresá correo y contraseña.';return}
+  const username=loginUser.value.trim(),password=loginPassword.value;
+  if(!username||!password){loginError.textContent='Ingresá usuario y contraseña.';return}
   loginBtn.disabled=true;loginError.textContent='Ingresando…';
-  const {data,error}=await sb.auth.signInWithPassword({email,password});
-  loginBtn.disabled=false;
-  if(error){loginError.textContent='No se pudo iniciar sesión. Revisá el correo y la contraseña.';return}
-  loginError.textContent='';
-  try{await loadCloudForUser(data.user)}catch(e){loginError.textContent='Entraste, pero no se pudo abrir la base. Ejecutá el archivo supabase-setup.sql.'}
+  try{
+    const out=await apiCall('login',{username,password});
+    sessionToken=out.token;localStorage.setItem(SESSION_KEY,sessionToken);loginError.textContent='';await loadCloud();
+  }catch(e){loginError.textContent=e.message||'No se pudo iniciar sesión.'}
+  finally{loginBtn.disabled=false}
 };
 loginPassword.onkeydown=e=>{if(e.key==='Enter')loginBtn.click()};
+loginUser.onkeydown=e=>{if(e.key==='Enter')loginPassword.focus()};
 accountBtn.onclick=async()=>{
-  if(!cloudConfigured){alert('Abrí el archivo index-supabase.html y pegá SUPABASE_URL y SUPABASE_PUBLISHABLE_KEY.');return}
-  if(currentUser){await flushCloudSave();await sb.auth.signOut()}else authScreen.classList.add('on');
+  if(currentUser){try{await flushCloudSave();await apiCall('logout')}catch(e){}sessionToken='';currentUser=null;cloudLoaded=false;localStorage.removeItem(SESSION_KEY);accountBtn.textContent='Cuenta';setSyncState('Sesión cerrada');authScreen.classList.add('on')}
+  else authScreen.classList.add('on');
 };
 window.addEventListener('beforeunload',()=>{saveLocal()});
 initCloud();

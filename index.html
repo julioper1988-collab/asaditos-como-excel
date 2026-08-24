@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Asaditos El Mejor · Excel moderno</title>
+<style>
+:root{
+  --bg:#0f1418;--panel:#151c22;--panel2:#1c2630;--line:#2b3a46;--text:#edf4f7;--muted:#93a4af;
+  --brand:#1683a8;--brand2:#0d5f7b;--ok:#3bd27f;--warn:#ffb84d;--bad:#ff6b6b;--input:#0f171d;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif}
+button,input,select{font:inherit;color:inherit}
+body{min-height:100vh}
+.top{position:sticky;top:0;z-index:20;background:rgba(15,20,24,.96);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:12px}
+.brand{font-weight:800;letter-spacing:.04em}.date{color:var(--muted);font-size:.9rem}
+.spacer{flex:1}.pill{padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel);font-size:.85rem}
+.btn{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:700}
+.btn:hover{filter:brightness(1.08)}.btn.primary{background:var(--brand);border-color:var(--brand);color:white}.btn.danger{color:var(--bad)}
+.wrap{max-width:1700px;margin:0 auto;padding:14px;display:grid;grid-template-columns:minmax(760px,1.6fr) minmax(420px,.8fr);gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.card-h{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}.card-h h2{margin:0;font-size:1rem;letter-spacing:.04em;text-transform:uppercase}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px;background:var(--panel2);border-bottom:1px solid var(--line)}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}.kpi small{display:block;color:var(--muted);font-size:.72rem;text-transform:uppercase}.kpi b{display:block;margin-top:3px;font-size:1.15rem;font-variant-numeric:tabular-nums}
+.table-wrap{overflow:auto;max-height:calc(100vh - 215px)}
+table{width:100%;border-collapse:separate;border-spacing:0;min-width:880px}
+th{position:sticky;top:0;z-index:3;background:#0f617f;color:white;text-align:left;padding:9px 8px;font-size:.75rem;text-transform:uppercase;letter-spacing:.03em;border-right:1px solid rgba(255,255,255,.12)}
+td{padding:7px 8px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);font-size:.88rem}tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}.prod-name{font-weight:700}.muted{color:var(--muted)}
+.cell-input{width:92px;max-width:100%;background:var(--input);border:1px solid var(--line);border-radius:7px;padding:7px 8px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.cell-input:focus{outline:2px solid var(--brand);background:#13232c}
+.cell-input{appearance:textfield;-moz-appearance:textfield}
+.cell-input::-webkit-outer-spin-button,.cell-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.cell-input::selection{background:rgba(22,131,168,.45)}
+.badrow td{background:rgba(255,107,107,.09)!important}.badtxt{color:var(--bad);font-weight:800}.oktxt{color:var(--ok);font-weight:800}.warntxt{color:var(--warn);font-weight:800}
+.right{display:flex;flex-direction:column;gap:14px}.section{padding:12px 14px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.field label{display:block;color:var(--muted);font-size:.72rem;text-transform:uppercase;margin-bottom:4px}.field input{width:100%;background:var(--input);border:1px solid var(--line);border-radius:8px;padding:9px 10px;text-align:right;font-weight:700}
+.line{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}.line:last-child{border-bottom:0}.line b{font-variant-numeric:tabular-nums}
+.verdict{padding:14px;text-align:center;border-top:1px solid var(--line)}.verdict strong{font-size:1.5rem;display:block}.verdict.ok strong{color:var(--ok)}.verdict.bad strong{color:var(--bad)}.verdict.warn strong{color:var(--warn)}
+.bill-row{display:grid;grid-template-columns:1fr 70px 110px;gap:8px;align-items:center;padding:5px 0}.bill-row input{width:100%;background:var(--input);border:1px solid var(--line);border-radius:7px;padding:7px;text-align:right}.bill-row b{text-align:right;font-variant-numeric:tabular-nums}
+.expense-row{display:grid;grid-template-columns:1fr 120px 36px;gap:6px;margin-bottom:6px}.expense-row input{background:var(--input);border:1px solid var(--line);border-radius:7px;padding:8px}.mini{border:1px solid var(--line);background:var(--panel2);border-radius:7px;cursor:pointer}.footer-actions{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+.locked{opacity:.68}.locked input{pointer-events:none}
+.modal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.64);display:none;align-items:center;justify-content:center;padding:16px}.modal.on{display:flex}.modal-box{width:min(620px,100%);max-height:88vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.4)}.modal-h{position:sticky;top:0;background:var(--panel);z-index:2;padding:14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}.modal-h h2{margin:0;font-size:1rem;text-transform:uppercase}.cost-row{display:grid;grid-template-columns:1fr 150px;gap:10px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--line)}.cost-row input{width:100%;background:var(--input);border:1px solid var(--line);border-radius:7px;padding:8px;text-align:right;font-weight:700}.cost-help{padding:10px 14px;color:var(--muted);font-size:.8rem}
+ .note{padding:9px 12px;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);background:rgba(255,255,255,.015)}
+.dash-box{width:min(1100px,100%)}
+.dash-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:14px}
+.dash-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:12px;padding:0 14px 14px}
+.dash-card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px}
+.dash-card h3{margin:0 0 10px;font-size:.82rem;text-transform:uppercase;color:var(--muted);letter-spacing:.05em}
+.rank-row{display:grid;grid-template-columns:minmax(130px,1fr) 90px 120px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.rank-row:last-child{border-bottom:0}.rank-row .bar{height:5px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:4px}.rank-row .bar i{display:block;height:100%;background:var(--brand);border-radius:6px}
+.day-row{display:grid;grid-template-columns:110px 1fr 115px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.prod-man-row{display:grid;grid-template-columns:minmax(180px,1fr) 110px 110px auto;gap:8px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--line)}
+.prod-man-row.inactive{opacity:.62}.status-dot{font-size:.72rem;font-weight:800;text-transform:uppercase}.status-dot.on{color:var(--ok)}.status-dot.off{color:var(--muted)}
+.periods{display:flex;gap:6px;flex-wrap:wrap;padding:12px 14px 0}.periods button.on{background:var(--brand);border-color:var(--brand);color:white}
+@media(max-width:760px){.dash-kpis{grid-template-columns:1fr 1fr}.dash-grid{grid-template-columns:1fr}.prod-man-row{grid-template-columns:1fr auto}.prod-man-row .price,.prod-man-row .state{display:none}}
+@media(max-width:1100px){.wrap{grid-template-columns:1fr}.table-wrap{max-height:none}.right{display:grid;grid-template-columns:1fr 1fr}.right .card:last-child{grid-column:1/-1}}
+@media(max-width:720px){.top{flex-wrap:wrap}.wrap{padding:8px}.summary{grid-template-columns:1fr 1fr}.right{display:flex}.card{border-radius:10px}.date{width:100%;order:3}.spacer{display:none}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand">ASADITOS EL MEJOR</div>
+  <div class="date" id="dateTxt"></div>
+  <div class="spacer"></div>
+  <span class="pill" id="saveState">Guardado local</span>
+  <button class="btn" id="todayBtn">Hoy</button>
+  <input id="datePick" type="date" class="pill" style="background:var(--panel);color:var(--text)" />
+  <button class="btn" id="dashBtn">Dashboard</button>
+  <button class="btn" id="manageProdBtn">Productos</button>
+  <button class="btn" id="moveDateBtn" title="Mover toda la carga de este día a otra fecha">Corregir fecha</button>
+</div>
+
+<div class="wrap">
+  <section class="card" id="prodCard">
+    <div class="card-h"><h2>Producción / Venta</h2><div class="spacer"></div><button class="btn" id="costBtn">Editar costos</button><button class="btn" id="addProdBtn">+ Producto</button></div>
+    <div class="summary">
+      <div class="kpi"><small>Disponible para vender</small><b id="kDispUnits">0</b></div>
+      <div class="kpi"><small>Valor disponible</small><b id="kDispValue">₲ 0</b></div>
+      <div class="kpi"><small>Vendidos</small><b id="kVend">0</b></div>
+      <div class="kpi"><small>Venta</small><b id="kVenta">₲ 0</b></div>
+      <div class="kpi"><small>Ganancia</small><b id="kGan">₲ 0</b></div>
+      <div class="kpi"><small>Gastos a cobrar</small><b id="kResultado">₲ 0</b></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Producto</th><th class="num">Precio</th><th class="num">Viene</th><th class="num">Producción</th><th class="num">Disponible</th><th class="num">Sobrante</th><th class="num">Averiados</th><th class="num">Vendido</th><th class="num">Total</th>
+        </tr></thead>
+        <tbody id="prodBody"></tbody>
+      </table>
+    </div>
+    <div class="note">Precio, Producción, Sobrante y Averiados se editan directamente. Enter baja al mismo campo del producto siguiente (Shift+Enter sube), igual que en Excel. El costo queda oculto y se modifica solo desde “Editar costos”.</div>
+    <div class="footer-actions"><button class="btn primary" id="closeBtn">Cerrar día</button><button class="btn" id="reopenBtn" style="display:none">Reabrir para corregir</button><button class="btn" id="exportBtn">Exportar respaldo</button><label class="btn" style="cursor:pointer">Importar respaldo<input id="importFile" type="file" accept="application/json" hidden></label></div>
+  </section>
+
+  <aside class="right">
+    <section class="card">
+      <div class="card-h"><h2>Arqueo de caja</h2></div>
+      <div class="section">
+        <div class="grid2">
+          <div class="field"><label>POS</label><input id="pos" inputmode="numeric" type="text" pattern="[0-9]*"></div>
+          <div class="field"><label>Transferencias</label><input id="tr" inputmode="numeric" type="text" pattern="[0-9]*"></div>
+          <div class="field"><label>Pedidos Ya</label><input id="py" inputmode="numeric" type="text" pattern="[0-9]*"></div>
+          <div class="field"><label>Monchis</label><input id="mo" inputmode="numeric" type="text" pattern="[0-9]*"></div>
+          <div class="field"><label>Sencillo / fondo</label><input id="se" inputmode="numeric" type="text" pattern="[0-9]*"></div>
+          <div class="field"><label>Efectivo contado</label><input id="efManual" inputmode="numeric" type="text" pattern="[0-9]*" placeholder="o usar contador"></div>
+        </div>
+      </div>
+      <div class="section" style="padding-top:0">
+        <div class="line"><span>Venta del día</span><b id="cVenta">₲ 0</b></div>
+        <div class="line"><span>− Cobrado sin efectivo</span><b id="cNoEf">₲ 0</b></div>
+        <div class="line"><span>− Gastos de caja</span><b id="cGastos">₲ 0</b></div>
+        <div class="line"><span>+ Sencillo</span><b id="cSe">₲ 0</b></div>
+        <div class="line"><span>Efectivo esperado</span><b id="cEsperado">₲ 0</b></div>
+        <div class="line"><span>Efectivo contado</span><b id="cContado">₲ 0</b></div>
+      </div>
+      <div class="verdict" id="verdict"><span class="muted">Cargá la caja para ver el cuadre.</span></div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><h2>Contador de efectivo</h2></div>
+      <div class="section" id="bills"></div>
+      <div class="section" style="padding-top:0"><div class="line"><span>Total billetes y monedas</span><b id="billTotal">₲ 0</b></div></div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><h2>Gastos de caja</h2><div class="spacer"></div><button class="btn" id="addExpense">+ Gasto</button></div>
+      <div class="section" id="expenses"></div>
+      <div class="section" style="padding-top:0"><div class="line"><span>Total gastos</span><b id="expenseTotal">₲ 0</b></div></div>
+    </section>
+  </aside>
+</div>
+<div class="modal" id="costModal">
+  <div class="modal-box">
+    <div class="modal-h"><h2>Costos de productos</h2><div class="spacer"></div><button class="btn" id="costClose">Cerrar</button></div>
+    <div class="cost-help">Estos son los costos actuales. Cambiarlos afecta los días nuevos; los días ya cerrados conservan su costo histórico.</div>
+    <div id="costList"></div>
+  </div>
+</div>
+<div class="modal" id="dateModal">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-h"><h2>Corregir fecha del día</h2><div class="spacer"></div><button class="btn" id="dateClose">Cerrar</button></div>
+    <div class="section">
+      <p class="muted" style="margin-top:0;line-height:1.5">Esto mueve <b>toda la carga del día actual</b>: producción, sobrantes, averiados, caja, conteo de efectivo y gastos. No duplica los datos.</p>
+      <div class="field"><label>Fecha correcta</label><input id="moveDatePick" type="date"></div>
+      <div id="moveDateInfo" class="muted" style="font-size:.82rem;margin-top:10px"></div>
+      <button class="btn primary" id="confirmMoveDate" style="width:100%;margin-top:14px">Mover todo a esta fecha</button>
+    </div>
+  </div>
+</div>
+<div class="modal" id="prodModal">
+  <div class="modal-box" style="width:min(760px,100%)">
+    <div class="modal-h"><h2>Productos</h2><div class="spacer"></div><button class="btn" id="prodClose">Cerrar</button></div>
+    <div class="cost-help">Desactivar quita el producto de la carga diaria sin borrar su historial. Solo se permite eliminar definitivamente un producto que nunca tuvo movimientos.</div>
+    <div id="prodManageList"></div>
+  </div>
+</div>
+<div class="modal" id="dashModal">
+  <div class="modal-box dash-box">
+    <div class="modal-h"><h2>Dashboard del negocio</h2><div class="spacer"></div><button class="btn" id="dashClose">Cerrar</button></div>
+    <div class="periods" id="dashPeriods">
+      <button class="btn" data-per="7">7 días</button><button class="btn" data-per="30">30 días</button><button class="btn" data-per="month">Este mes</button><button class="btn" data-per="all">Todo</button><button class="btn" data-per="custom">Entre fechas</button>
+    </div>
+    <div id="dashCustom" style="display:none;padding:10px 14px 0">
+      <div class="grid2">
+        <div class="field"><label for="dashFrom">Desde</label><input type="date" id="dashFrom"></div>
+        <div class="field"><label for="dashTo">Hasta</label><input type="date" id="dashTo"></div>
+      </div>
+      <button class="btn primary" id="dashApply" style="margin-top:8px;width:100%">Aplicar rango</button>
+    </div>
+    <div id="dashBody"></div>
+  </div>
+</div>
+
+<script>
+const KEY='asaditos_excel_moderno_v1';
+const DENOM=[100000,50000,20000,10000,5000,2000,1000,500,100,50];
+const DEFAULTS=[
+ ['ASADITO CARNE',5000,3500],['ASADITO POLLO',5000,3200],['ASADITO CERDO',5000,3300],['CHORIQUEZO',7000,4800],['PICANTE BESITO',5000,3300],['ALITA DE POLLO',5000,3200],['PARRILLERO',5000,3500],['BUTIFARRA',6000,4200],['MORCILLA',6000,4000]
+];
+let db=load(); let fecha=todayISO();
+lockLegacyClosedSnapshots();
+function todayISO(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+function money(n){return '₲ '+Math.round(n||0).toLocaleString('es-PY')}
+function uid(){return (crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random())}
+function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x&&x.products&&x.days)return x}catch(e){} return {products:DEFAULTS.map(x=>({id:uid(),name:x[0],price:x[1],cost:x[2],active:true})),days:{}}}
+function save(){localStorage.setItem(KEY,JSON.stringify(db));saveState.textContent='Guardado '+new Date().toLocaleTimeString('es-PY',{hour:'2-digit',minute:'2-digit'});}
+function lockLegacyClosedSnapshots(){
+  // Al actualizar esta versión, fijamos precio/costo de los días ya cerrados para que no cambien después.
+  let changed=false;
+  Object.values(db.days||{}).forEach(d=>{
+    if(!d||!d.closed)return;
+    Object.entries(d.items||{}).forEach(([id,it])=>{
+      const p=db.products.find(x=>x.id===id); if(!p)return;
+      if(it.pr==null){it.pr=+p.price||0;changed=true}
+      if(it.co==null){it.co=+p.cost||0;changed=true}
+    });
+  });
+  if(changed)localStorage.setItem(KEY,JSON.stringify(db));
+}
+function day(f=fecha){if(!db.days[f])db.days[f]={closed:false,items:{},cash:{pos:0,tr:0,py:0,mo:0,se:0,ef:0,bills:{},expenses:[]}};return db.days[f]}
+function dayHasData(d){
+  if(!d)return false;
+  if(d.closed)return true;
+  if(Object.keys(d.items||{}).some(id=>{const x=d.items[id]||{};return (+x.prod||0)>0||x.sob!==null&&x.sob!==undefined||(+x.av||0)>0||x.pr!=null||x.co!=null}))return true;
+  const c=d.cash||{};
+  if(['pos','tr','py','mo','se','ef'].some(k=>(+c[k]||0)!==0))return true;
+  if(Object.keys(c.bills||{}).some(k=>(+c.bills[k]||0)!==0))return true;
+  if((c.expenses||[]).some(x=>(x.name||'').trim()||(+x.amount||0)!==0))return true;
+  return false;
+}
+function fmtLong(f){return new Date(f+'T12:00:00').toLocaleDateString('es-PY',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
+function item(id,f=fecha){const d=day(f);if(!d.items[id])d.items[id]={prod:0,sob:null,av:0,pr:null,co:null};const it=d.items[id];if(it.pr===undefined)it.pr=null;if(it.co===undefined)it.co=null;return it}
+function prevCarry(id){const ks=Object.keys(db.days).filter(f=>f<fecha).sort().reverse();for(const f of ks){const d=db.days[f];if(!d.closed)continue;const it=d.items[id];if(!it) return 0;return Number(it.sob||0)}return 0}
+function calc(p){const it=item(p.id),viene=prevCarry(p.id),prod=+it.prod||0,disp=viene+prod,sob=it.sob===null?null:(+it.sob||0),av=+it.av||0;const invalid=sob!==null && sob+av>disp;const vend=(sob===null||invalid)?null:Math.max(0,disp-sob-av);const price=it.pr!=null?+it.pr:(+p.price||0),cost=it.co!=null?+it.co:(+p.cost||0);return {viene,prod,disp,sob,av,invalid,vend,price,cost,total:vend===null?null:vend*price,gan:vend===null?0:vend*(price-cost)}}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(){datePick.value=fecha;dateTxt.textContent=new Date(fecha+'T12:00:00').toLocaleDateString('es-PY',{weekday:'long',day:'numeric',month:'long',year:'numeric'});const d=day();
+ prodCard.classList.toggle('locked',d.closed); closeBtn.style.display=d.closed?'none':'inline-block'; reopenBtn.style.display=d.closed?'inline-block':'none'; addProdBtn.disabled=d.closed;
+ prodBody.innerHTML=db.products.filter(p=>p.active!==false).map(p=>{const it=item(p.id),c=calc(p);return `<tr class="${c.invalid?'badrow':''}">
+ <td><div class="prod-name">${escapeHtml(p.name)}</div></td>
+ <td class="num"><input class="cell-input" type="text" inputmode="numeric" pattern="[0-9]*" value="${c.price||''}" data-pid="${p.id}" data-pk="price" data-nav="price" ${d.closed?'disabled':''}></td>
+ <td class="num ${c.viene?'warntxt':'muted'}">${c.viene||0}</td>
+ <td class="num"><input class="cell-input" type="text" inputmode="numeric" pattern="[0-9]*" value="${it.prod||''}" data-id="${p.id}" data-k="prod" data-nav="prod" ${d.closed?'disabled':''}></td>
+ <td class="num">${c.disp}</td>
+ <td class="num"><input class="cell-input" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="contar" value="${it.sob===null?'':it.sob}" data-id="${p.id}" data-k="sob" data-nav="sob" ${d.closed?'disabled':''}></td>
+ <td class="num"><input class="cell-input" type="text" inputmode="numeric" pattern="[0-9]*" value="${it.av||''}" data-id="${p.id}" data-k="av" data-nav="av" ${d.closed?'disabled':''}></td>
+ <td class="num ${c.invalid?'badtxt':c.vend===null?'muted':'oktxt'}">${c.invalid?'ERROR':c.vend===null?'—':c.vend}</td>
+ <td class="num ${c.invalid?'badtxt':''}">${c.total===null?'—':money(c.total).replace('₲ ','')}</td></tr>`}).join('');
+ function commitCell(el){
+   let raw=String(el.value||'').replace(/\D/g,'');
+   el.value=raw;
+   if(el.dataset.pid){
+     const p=db.products.find(x=>x.id===el.dataset.pid);
+     const it=item(el.dataset.pid);
+     const snapKey=el.dataset.pk==='price'?'pr':'co';
+     if(it[snapKey]!=null)it[snapKey]=+raw||0;
+     else if(p)p[el.dataset.pk]=+raw||0;
+   }else{
+     const it=item(el.dataset.id);
+     it[el.dataset.k]=el.dataset.k==='sob'?(raw===''?null:+raw):(+raw||0);
+   }
+   save();
+ }
+ const cells=[...document.querySelectorAll('[data-nav]')];
+ cells.forEach(el=>{
+   el.oninput=()=>{
+     el.value=String(el.value||'').replace(/\D/g,'');
+     // Vista previa en vivo, sin reconstruir la tabla ni sacar el foco.
+     const raw=el.value;
+     if(el.dataset.pid){
+       const p=db.products.find(x=>x.id===el.dataset.pid);
+       const it=item(el.dataset.pid);
+       const snapKey=el.dataset.pk==='price'?'pr':'co';
+       if(it[snapKey]!=null)it[snapKey]=+raw||0;
+       else if(p)p[el.dataset.pk]=+raw||0;
+     }else{
+       const it=item(el.dataset.id);
+       it[el.dataset.k]=el.dataset.k==='sob'?(raw===''?null:+raw):(+raw||0);
+     }
+     refreshCashDerived();
+   };
+   el.onfocus=()=>{requestAnimationFrame(()=>el.select())};
+   el.onblur=()=>{commitCell(el);render()};
+   el.onkeydown=e=>{
+     if(e.key!=='Enter')return;
+     e.preventDefault();
+     const id=el.dataset.pid||el.dataset.id, nav=el.dataset.nav;
+     const activos=db.products.filter(p=>p.active!==false);
+     const idx=activos.findIndex(p=>p.id===id);
+     const nextIdx=e.shiftKey?idx-1:idx+1;
+     commitCell(el);
+     render();
+     const nextId=nextIdx>=0&&nextIdx<activos.length?activos[nextIdx].id:null;
+     const target=nextId?document.querySelector(`[data-nav="${nav}"][data-pid="${nextId}"], [data-nav="${nav}"][data-id="${nextId}"]`):null;
+     if(target){target.focus();target.select();target.scrollIntoView({block:'nearest'});}
+   };
+ });
+ renderCash();
+}
+function totals(){let vend=0,venta=0,gan=0,dispUnits=0,dispValue=0,invalid=false,pending=0;db.products.filter(p=>p.active!==false).forEach(p=>{const c=calc(p);dispUnits+=c.disp;dispValue+=c.disp*c.price;if(c.invalid)invalid=true;if(c.vend===null){if(c.disp>0)pending++;return}vend+=c.vend;venta+=c.total;gan+=c.gan});const gastos=day().cash.expenses.reduce((a,b)=>a+(+b.amount||0),0);return {vend,venta,gan,dispUnits,dispValue,gastos,invalid,pending}}
+function refreshCashDerived(){
+ const d=day(),c=d.cash,t=totals();
+ kDispUnits.textContent=t.dispUnits.toLocaleString('es-PY');kDispValue.textContent=money(t.dispValue);
+ kVend.textContent=t.vend;kVenta.textContent=money(t.venta);kGan.textContent=money(t.gan);kResultado.textContent=money(t.gastos);
+ const noEf=(+c.pos||0)+(+c.tr||0)+(+c.py||0)+(+c.mo||0),esp=t.venta-noEf-t.gastos+(+c.se||0),dif=(+c.ef||0)-esp;
+ cVenta.textContent=money(t.venta);cNoEf.textContent=money(noEf);cGastos.textContent=money(t.gastos);cSe.textContent=money(c.se||0);cEsperado.textContent=money(esp);cContado.textContent=money(c.ef||0);
+ verdict.className='verdict '+(Math.abs(dif)<1?'ok':dif<0?'bad':'warn');
+ verdict.innerHTML=(t.pending||t.invalid)?`<span class="warntxt">Venta todavía pendiente</span><strong>${t.invalid?'Hay filas con error':t.pending+' producto(s) sin contar'}</strong>`:Math.abs(dif)<1?'<span>✓</span><strong>Caja cuadrada</strong>':dif<0?`<span>Faltó</span><strong>${money(Math.abs(dif))}</strong>`:`<span>Sobró</span><strong>${money(dif)}</strong>`;
+ expenseTotal.textContent=money(c.expenses.reduce((a,b)=>a+(+b.amount||0),0));
+}
+function renderCash(){
+ const d=day(),c=d.cash;
+ ['pos','tr','py','mo','se'].forEach(k=>{document.getElementById(k).value=c[k]||'';document.getElementById(k).disabled=d.closed});
+ efManual.value=c.ef||'';efManual.disabled=d.closed;
+ refreshCashDerived();renderBills();renderExpenses();
+}
+const CASH_NAV=['pos','tr','py','mo','se','efManual'];
+CASH_NAV.forEach((id,idx)=>{
+ const el=document.getElementById(id);
+ el.oninput=e=>{
+   e.target.value=String(e.target.value||'').replace(/\D/g,'');
+   const c=day().cash;if(id==='efManual')c.ef=+e.target.value||0;else c[id]=+e.target.value||0;
+   save();refreshCashDerived();
+ };
+ el.onfocus=()=>requestAnimationFrame(()=>el.select());
+ el.onkeydown=e=>{
+   if(e.key!=='Enter')return;e.preventDefault();
+   const n=e.shiftKey?idx-1:idx+1,target=CASH_NAV[n]?document.getElementById(CASH_NAV[n]):null;
+   if(target&&!target.disabled){target.focus();target.select()}
+ };
+});
+function renderBills(){
+ const c=day().cash,b=c.bills||{},closed=day().closed;
+ bills.innerHTML=DENOM.map(d=>`<div class="bill-row"><span>${money(d)}</span><input ${closed?'disabled':''} type="text" inputmode="numeric" pattern="[0-9]*" value="${b[d]||''}" data-den="${d}" placeholder="0"><b data-sub="${d}">${money((b[d]||0)*d)}</b></div>`).join('');
+ const inputs=[...bills.querySelectorAll('input')];
+ inputs.forEach((i,idx)=>{
+   i.oninput=()=>{
+     i.value=String(i.value||'').replace(/\D/g,'');
+     b[i.dataset.den]=+i.value||0;
+     const den=+i.dataset.den;
+     const sub=bills.querySelector(`[data-sub="${den}"]`);if(sub)sub.textContent=money((+b[den]||0)*den);
+     const tot=DENOM.reduce((s,d)=>s+(+b[d]||0)*d,0);c.ef=tot;efManual.value=tot||'';billTotal.textContent=money(tot);
+     save();refreshCashDerived();
+   };
+   i.onfocus=()=>requestAnimationFrame(()=>i.select());
+   i.onkeydown=e=>{if(e.key!=='Enter')return;e.preventDefault();const n=e.shiftKey?idx-1:idx+1;if(inputs[n]){inputs[n].focus();inputs[n].select()}};
+ });
+ billTotal.textContent=money(DENOM.reduce((s,d)=>s+(+b[d]||0)*d,0));
+}
+function renderExpenses(){
+ const c=day().cash,closed=day().closed;
+ expenses.innerHTML=(c.expenses||[]).map((g,i)=>`<div class="expense-row"><input ${closed?'disabled':''} value="${escapeHtml(g.name||'')}" data-e="${i}" data-k="name" placeholder="Concepto"><input ${closed?'disabled':''} type="text" inputmode="numeric" pattern="[0-9]*" value="${g.amount||''}" data-e="${i}" data-k="amount" placeholder="Monto"><button class="mini" ${closed?'disabled':''} data-del="${i}">×</button></div>`).join('')||'<div class="muted">Sin gastos cargados.</div>';
+ const inputs=[...expenses.querySelectorAll('[data-e]')];
+ inputs.forEach((el,idx)=>{
+   el.oninput=()=>{
+     const g=c.expenses[+el.dataset.e];
+     if(el.dataset.k==='amount'){el.value=String(el.value||'').replace(/\D/g,'');g.amount=+el.value||0}else g.name=el.value;
+     save();refreshCashDerived();
+   };
+   el.onfocus=()=>requestAnimationFrame(()=>el.select());
+   el.onkeydown=e=>{
+     if(e.key!=='Enter')return;
+     e.preventDefault();
+     if(e.shiftKey){
+       const prev=inputs[idx-1];
+       if(prev){prev.focus();prev.select()}
+       return;
+     }
+     // Concepto -> monto de la misma fila. Monto -> crea/abre el siguiente gasto.
+     if(el.dataset.k==='name'){
+       const next=inputs[idx+1];
+       if(next){next.focus();next.select()}
+       return;
+     }
+     const row=+el.dataset.e;
+     if(row===c.expenses.length-1){
+       c.expenses.push({name:'',amount:0});
+       save();
+       renderExpenses();
+       const nuevo=expenses.querySelector(`[data-e="${row+1}"][data-k="name"]`);
+       if(nuevo){nuevo.focus();nuevo.select()}
+     }else{
+       const siguiente=expenses.querySelector(`[data-e="${row+1}"][data-k="name"]`);
+       if(siguiente){siguiente.focus();siguiente.select()}
+     }
+   };
+ });
+ expenses.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{c.expenses.splice(+b.dataset.del,1);save();renderCash()});
+ expenseTotal.textContent=money(c.expenses.reduce((a,b)=>a+(+b.amount||0),0));
+}
+function renderCosts(){
+ const activos=db.products.filter(p=>p.active!==false);
+ costList.innerHTML=activos.map(p=>`<div class="cost-row"><b>${escapeHtml(p.name)}</b><input type="text" inputmode="numeric" pattern="[0-9]*" value="${+p.cost||''}" data-cost-id="${p.id}" placeholder="0"></div>`).join('')||'<div class="cost-help">No hay productos.</div>';
+ const inputs=[...costList.querySelectorAll('[data-cost-id]')];
+ inputs.forEach((el,idx)=>{
+   el.oninput=()=>{el.value=String(el.value||'').replace(/\D/g,'')};
+   el.onfocus=()=>requestAnimationFrame(()=>el.select());
+   const commit=()=>{const p=db.products.find(x=>x.id===el.dataset.costId);if(p){p.cost=+el.value||0;save();renderCash()}};
+   el.onblur=commit;
+   el.onkeydown=e=>{
+     if(e.key!=='Enter')return;
+     e.preventDefault();commit();
+     const n=e.shiftKey?idx-1:idx+1;
+     if(inputs[n]){inputs[n].focus();inputs[n].select()}
+   };
+ });
+}
+
+function productHasHistory(id){
+ return Object.values(db.days||{}).some(d=>{const x=(d.items||{})[id];return !!(x&&((+x.prod||0)>0||x.sob!==null&&x.sob!==undefined||(+x.av||0)>0||x.pr!=null||x.co!=null))});
+}
+function renderProductManager(){
+ prodManageList.innerHTML=db.products.map(p=>{
+   const hist=productHasHistory(p.id), active=p.active!==false;
+   return `<div class="prod-man-row ${active?'':'inactive'}"><div><b>${escapeHtml(p.name)}</b><div class="muted" style="font-size:.74rem">${hist?'Con historial':'Sin movimientos'}</div></div><div class="price">${money(p.price||0)}</div><div class="state"><span class="status-dot ${active?'on':'off'}">${active?'Activo':'Inactivo'}</span></div><div style="display:flex;gap:6px;justify-content:flex-end"><button class="btn" data-toggle-prod="${p.id}">${active?'Desactivar':'Reactivar'}</button>${!hist?`<button class="btn danger" data-delete-prod="${p.id}">Eliminar</button>`:''}</div></div>`;
+ }).join('')||'<div class="cost-help">No hay productos.</div>';
+ prodManageList.querySelectorAll('[data-toggle-prod]').forEach(b=>b.onclick=()=>{
+   const p=db.products.find(x=>x.id===b.dataset.toggleProd); if(!p)return;
+   if(p.active!==false && !confirm('¿Desactivar '+p.name+'? Dejará de aparecer en la carga diaria, pero su historial se conserva.'))return;
+   p.active=p.active===false; save(); renderProductManager(); render();
+ });
+ prodManageList.querySelectorAll('[data-delete-prod]').forEach(b=>b.onclick=()=>{
+   const p=db.products.find(x=>x.id===b.dataset.deleteProd); if(!p)return;
+   if(productHasHistory(p.id)){alert('Este producto ya tiene movimientos. Para conservar el historial, solo se puede desactivar.');return}
+   if(!confirm('¿Eliminar definitivamente '+p.name+'?'))return;
+   db.products=db.products.filter(x=>x.id!==p.id); save(); renderProductManager(); render();
+ });
+}
+function readDay(f){return db.days[f]||null}
+function prevCarryFor(id,f){
+ const ks=Object.keys(db.days||{}).filter(x=>x<f).sort().reverse();
+ for(const k of ks){const d=db.days[k];if(!d||!d.closed)continue;const it=(d.items||{})[id];return it?Number(it.sob||0):0}return 0;
+}
+function histCalc(p,f){
+ const d=readDay(f);if(!d)return null;const it=(d.items||{})[p.id];if(!it)return null;
+ const viene=prevCarryFor(p.id,f),prod=+it.prod||0,disp=viene+prod,sob=it.sob===null||it.sob===undefined?null:(+it.sob||0),av=+it.av||0;
+ if(sob===null||sob+av>disp)return {vend:null,total:0,gan:0,av};
+ const vend=Math.max(0,disp-sob-av),price=it.pr!=null?+it.pr:(+p.price||0),cost=it.co!=null?+it.co:(+p.cost||0);
+ return {vend,total:vend*price,gan:vend*(price-cost),av};
+}
+let dashPeriod='30', dashFromDate='', dashToDate='';
+const dashFromInput=document.getElementById('dashFrom'), dashToInput=document.getElementById('dashTo');
+function dashDates(){
+ const all=Object.keys(db.days||{}).filter(f=>dayHasData(db.days[f])).sort();
+ if(dashPeriod==='all')return all;
+ if(dashPeriod==='custom'){
+   let a=dashFromDate||all[0]||todayISO(), b=dashToDate||todayISO();
+   if(a>b){const t=a;a=b;b=t}
+   return all.filter(f=>f>=a&&f<=b);
+ }
+ const now=new Date(todayISO()+'T12:00:00');
+ if(dashPeriod==='month'){const ym=todayISO().slice(0,7);return all.filter(f=>f.slice(0,7)===ym)}
+ const n=+dashPeriod||30, from=new Date(now);from.setDate(from.getDate()-(n-1));const fs=from.toISOString().slice(0,10);return all.filter(f=>f>=fs&&f<=todayISO());
+}
+function renderDashboard(){
+ document.querySelectorAll('#dashPeriods [data-per]').forEach(b=>b.classList.toggle('on',b.dataset.per===dashPeriod));
+ dashCustom.style.display=dashPeriod==='custom'?'block':'none';
+ if(dashPeriod==='custom'){dashFromInput.value=dashFromDate||'';dashToInput.value=dashToDate||''}
+ const fs=dashDates();let venta=0,vend=0,gan=0,gastos=0;const byProd={},byDay=[],byExpense={};
+ db.products.forEach(p=>byProd[p.id]={name:p.name,vend:0,venta:0,gan:0});
+ fs.forEach(f=>{const d=db.days[f],exps=(d.cash?.expenses||[]),g=exps.reduce((a,x)=>a+(+x.amount||0),0);gastos+=g;exps.forEach(x=>{const raw=(x.name||'Sin concepto').trim()||'Sin concepto';const key=raw.toLowerCase();if(!byExpense[key])byExpense[key]={name:raw,total:0};byExpense[key].total+=(+x.amount||0)});let dv=0,dn=0,dg=0;
+   db.products.forEach(p=>{const c=histCalc(p,f);if(!c||c.vend===null)return;dv+=c.total;dn+=c.vend;dg+=c.gan;const r=byProd[p.id];r.vend+=c.vend;r.venta+=c.total;r.gan+=c.gan});
+   venta+=dv;vend+=dn;gan+=dg;byDay.push({f,venta:dv,gan:dg});
+ });
+ const daysWithSales=byDay.filter(x=>x.venta>0).length||1,rank=Object.values(byProd).filter(x=>x.vend>0).sort((a,b)=>b.venta-a.venta),max=Math.max(1,...rank.map(x=>x.venta));
+ const best=[...byDay].sort((a,b)=>b.venta-a.venta)[0];
+ const expenseRank=Object.values(byExpense).filter(x=>x.total>0).sort((a,b)=>b.total-a.total);
+ dashBody.innerHTML=`<div class="dash-kpis"><div class="kpi"><small>Venta</small><b>${money(venta)}</b></div><div class="kpi"><small>Vendidos</small><b>${vend}</b></div><div class="kpi"><small>Ganancia</small><b>${money(gan)}</b></div><div class="kpi"><small>Gastos a cobrar</small><b>${money(gastos)}</b></div><div class="kpi"><small>Promedio venta/día</small><b>${money(venta/daysWithSales)}</b></div><div class="kpi"><small>Días con venta</small><b>${byDay.filter(x=>x.venta>0).length}</b></div><div class="kpi"><small>Mejor día</small><b style="font-size:.88rem">${best&&best.venta?fmtLong(best.f)+' · '+money(best.venta):'—'}</b></div></div>
+ <div class="dash-grid"><div class="dash-card"><h3>Productos que más venden</h3>${rank.length?rank.map(r=>`<div class="rank-row"><div><b>${escapeHtml(r.name)}</b><div class="bar"><i style="width:${Math.round(r.venta/max*100)}%"></i></div></div><div style="text-align:right">${r.vend} un.</div><div style="text-align:right"><b>${money(r.venta)}</b><div class="muted" style="font-size:.7rem">gan. ${money(r.gan)}</div></div></div>`).join(''):'<div class="muted">Todavía no hay ventas cerradas en este período.</div>'}</div>
+ <div class="dash-card"><h3>Venta por día</h3>${byDay.filter(x=>x.venta||x.gan).slice(-12).reverse().map(x=>`<div class="day-row"><span>${new Date(x.f+'T12:00:00').toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit'})}</span><span class="muted">Ganancia ${money(x.gan)}</span><b style="text-align:right">${money(x.venta)}</b></div>`).join('')||'<div class="muted">Sin datos en este período.</div>'}</div>
+ <div class="dash-card"><h3>Gastos a cobrar</h3>${expenseRank.length?expenseRank.map(x=>`<div class="line"><span>${escapeHtml(x.name)}</span><span><b>${money(x.total)}</b> <span class="muted" style="font-size:.72rem;margin-left:.35rem">${gastos?Math.round(x.total/gastos*100):0}%</span></span></div>`).join('')+`<div class="line" style="margin-top:.45rem;padding-top:.65rem;border-top:2px solid var(--line)"><span><b>Total a cobrar</b></span><b>${money(gastos)}</b></div>`:'<div class="muted">Sin gastos cargados en este período.</div>'}</div></div>`;
+}
+manageProdBtn.onclick=()=>{renderProductManager();prodModal.classList.add('on')};
+prodClose.onclick=()=>prodModal.classList.remove('on');prodModal.onclick=e=>{if(e.target===prodModal)prodModal.classList.remove('on')};
+dashBtn.onclick=()=>{renderDashboard();dashModal.classList.add('on')};
+dashClose.onclick=()=>dashModal.classList.remove('on');dashModal.onclick=e=>{if(e.target===dashModal)dashModal.classList.remove('on')};
+document.querySelectorAll('#dashPeriods [data-per]').forEach(b=>b.onclick=()=>{
+ dashPeriod=b.dataset.per;
+ if(dashPeriod==='custom'){
+   const all=Object.keys(db.days||{}).filter(f=>dayHasData(db.days[f])).sort();
+   if(!dashFromDate)dashFromDate=all[0]||todayISO();
+   if(!dashToDate)dashToDate=todayISO();
+ }
+ renderDashboard();
+});
+dashApply.onclick=()=>{
+ if(!dashFromInput.value||!dashToInput.value){alert('Elegí Desde y Hasta.');return}
+ let a=dashFromInput.value,b=dashToInput.value;if(a>b){const t=a;a=b;b=t}
+ dashFromDate=a;dashToDate=b;dashPeriod='custom';renderDashboard();
+};
+
+costBtn.onclick=()=>{renderCosts();costModal.classList.add('on');setTimeout(()=>costList.querySelector('input')?.focus(),50)};
+costClose.onclick=()=>{costModal.classList.remove('on');render()};
+costModal.onclick=e=>{if(e.target===costModal){costModal.classList.remove('on');render()}};
+addExpense.onclick=()=>{if(day().closed)return;day().cash.expenses.push({name:'',amount:0});save();renderCash()};
+addProdBtn.onclick=()=>{if(day().closed)return;const name=prompt('Nombre del producto');if(!name)return;const price=+prompt('Precio de venta')||0;db.products.push({id:uid(),name,price,cost:0,active:true});save();render()};
+closeBtn.onclick=()=>{const t=totals();if(t.invalid){alert('Hay filas con cantidades imposibles. Corregilas antes de cerrar.');return}if(t.pending){alert('Faltan '+t.pending+' producto(s) por contar. Cargá el sobrante, aunque sea 0.');return}if(confirm('¿Cerrar el día? Después quedará en solo lectura.')){const d=day();db.products.forEach(p=>{const it=d.items[p.id];if(it){it.pr=+p.price||0;it.co=+p.cost||0}});d.closed=true;save();render()}};
+reopenBtn.onclick=()=>{if(confirm('¿Reabrir este día para corregir?')){day().closed=false;save();render()}};
+todayBtn.onclick=()=>{fecha=todayISO();render()};
+datePick.onchange=()=>{if(datePick.value){fecha=datePick.value;render()}};
+moveDateBtn.onclick=()=>{
+  moveDatePick.value=fecha;
+  moveDateInfo.innerHTML='Día actual: <b>'+fmtLong(fecha)+'</b>';
+  dateModal.classList.add('on');
+  setTimeout(()=>moveDatePick.focus(),50);
+};
+dateClose.onclick=()=>dateModal.classList.remove('on');
+dateModal.onclick=e=>{if(e.target===dateModal)dateModal.classList.remove('on')};
+moveDatePick.onchange=()=>{
+  const f=moveDatePick.value;
+  if(!f){moveDateInfo.textContent='Elegí la fecha correcta.';return}
+  if(f===fecha){moveDateInfo.innerHTML='Esa ya es la fecha actual.';return}
+  const ocupado=dayHasData(db.days[f]);
+  moveDateInfo.innerHTML=ocupado
+    ? '<span class="badtxt">⚠ Esa fecha ya tiene datos. No se reemplazará nada.</span>'
+    : 'Se moverá todo de <b>'+fmtLong(fecha)+'</b> a <b>'+fmtLong(f)+'</b>.';
+};
+confirmMoveDate.onclick=()=>{
+  const desde=fecha,hasta=moveDatePick.value;
+  if(!hasta){alert('Elegí la fecha correcta.');return}
+  if(hasta===desde){dateModal.classList.remove('on');return}
+  const origen=db.days[desde];
+  if(!dayHasData(origen)){alert('Este día todavía no tiene datos para mover.');return}
+  if(dayHasData(db.days[hasta])){alert('La fecha destino ya tiene datos. Para evitar pérdidas, no se reemplazó nada.');return}
+  if(!confirm('¿Mover toda la carga de '+fmtLong(desde)+' a '+fmtLong(hasta)+'?'))return;
+  db.days[hasta]=origen;
+  delete db.days[desde];
+  fecha=hasta;
+  save();
+  dateModal.classList.remove('on');
+  render();
+  alert('Listo. Toda la carga quedó en '+fmtLong(hasta)+'.');
+};
+exportBtn.onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}));a.download='asaditos-respaldo-'+todayISO()+'.json';a.click()};
+importFile.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.products||!x.days)throw 0;if(confirm('Esto reemplaza los datos de esta versión de prueba. ¿Seguir?')){db=x;save();render()}}catch(err){alert('Archivo no válido')}};r.readAsText(f);e.target.value=''};
+render();
+</script>
+</body>
+</html>

@@ -199,6 +199,8 @@ const DEFAULTS=[
 ];
 const API_URL=SUPABASE_URL+'/functions/v1/asaditos-v2-api';
 const SESSION_KEY='asaditos_v2_session_token';
+const MIGRATION_KEY='asaditos_v2_local_migrated_v1';
+const LEGACY_BACKUP_KEY='asaditos_v2_legacy_backup_v1';
 const cloudConfigured=SUPABASE_URL.startsWith('https://')&&!SUPABASE_URL.includes('PEGA_AQUI')&&!SUPABASE_PUBLISHABLE_KEY.includes('PEGA_AQUI');
 let db=loadLocal(); let fecha=todayISO(); let currentUser=null; let sessionToken=localStorage.getItem(SESSION_KEY)||''; let cloudTimer=null; let cloudLoaded=false; let cloudWriting=false;
 lockLegacyClosedSnapshots();
@@ -227,14 +229,48 @@ async function flushCloudSave(){
   catch(err){console.error(err);setSyncState('Error al sincronizar','sync-bad')}
   finally{cloudWriting=false}
 }
+function rawDayHasData(d){
+  if(!d)return false;
+  if(d.closed)return true;
+  if(Object.values(d.items||{}).some(x=>x&&((+x.prod||0)>0||x.sob!==null&&x.sob!==undefined||(+x.av||0)>0||x.pr!=null||x.co!=null)))return true;
+  const c=d.cash||{};
+  if(['pos','tr','py','mo','se','ef'].some(k=>(+c[k]||0)!==0))return true;
+  if(Object.values(c.bills||{}).some(v=>(+v||0)!==0))return true;
+  if((c.expenses||[]).some(x=>(x?.name||'').trim()||(+x?.amount||0)!==0))return true;
+  return false;
+}
+function meaningfulDayCount(x){return Object.values(x?.days||{}).filter(rawDayHasData).length}
 async function loadCloud(){
   cloudLoaded=false; setSyncState('Cargando Supabase…');
   const local=loadLocal();
   const out=await apiCall('load');
   currentUser=out.username||'julio';
-  if(out.data&&out.data.products&&out.data.days){db=out.data;saveLocal()}
-  else{db=local&&local.products&&local.days?local:freshDb();saveLocal();await apiCall('save',{data:db})}
-  lockLegacyClosedSnapshots();cloudLoaded=true;accountBtn.textContent='Salir';authScreen.classList.remove('on');setSyncState('Supabase ✓','sync-ok');render();
+  const cloud=(out.data&&out.data.products&&out.data.days)?out.data:null;
+  const localDays=meaningfulDayCount(local), cloudDays=meaningfulDayCount(cloud);
+  const migrated=localStorage.getItem(MIGRATION_KEY)==='1';
+
+  // Migración segura: si este navegador conserva movimientos del sistema nuevo
+  // y la nube todavía no tiene movimientos reales, subimos la copia local completa.
+  if(!migrated && localDays>0 && cloudDays===0){
+    try{localStorage.setItem(LEGACY_BACKUP_KEY,JSON.stringify(local))}catch(e){}
+    db=local;
+    await apiCall('save',{data:db});
+    localStorage.setItem(MIGRATION_KEY,'1');
+    setSyncState('Datos locales migrados ✓','sync-ok');
+  }else if(cloud){
+    // Antes de reemplazar una copia local distinta, conservamos un respaldo en el navegador.
+    if(localDays>cloudDays){try{localStorage.setItem(LEGACY_BACKUP_KEY,JSON.stringify(local))}catch(e){}}
+    db=cloud; saveLocal();
+    if(cloudDays>0)localStorage.setItem(MIGRATION_KEY,'1');
+  }else{
+    db=local&&local.products&&local.days?local:freshDb();
+    saveLocal(); await apiCall('save',{data:db});
+    if(localDays>0)localStorage.setItem(MIGRATION_KEY,'1');
+  }
+  saveLocal();
+  lockLegacyClosedSnapshots();cloudLoaded=true;accountBtn.textContent='Salir';authScreen.classList.remove('on');
+  if(saveState.textContent!=='Datos locales migrados ✓')setSyncState('Supabase ✓','sync-ok');
+  render();
 }
 async function initCloud(){
   if(!cloudConfigured){accountBtn.textContent='Configurar Supabase';setSyncState('Falta configurar Supabase','sync-bad');render();return}

@@ -88,7 +88,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}.prod-name{font
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Producto</th><th class="num">Precio</th><th class="num">Viene</th><th class="num">Producción</th><th class="num">Disponible</th><th class="num">Sobrante</th><th class="num">Averiados</th><th class="num">Vendido</th><th class="num">Total</th>
+          <th>Producto</th><th class="num">Precio</th><th class="num">Viene</th><th class="num">Producción</th><th class="num">Disponible</th><th class="num">Sobrante</th><th class="num">Averiados</th><th class="num">Vendido</th><th class="num" title="Unidades cobradas en la Caja de asaditos">Caja</th><th class="num">Total</th>
         </tr></thead>
         <tbody id="prodBody"></tbody>
       </table>
@@ -119,6 +119,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}.prod-name{font
         <div class="line"><span>Efectivo contado</span><b id="cContado">₲ 0</b></div>
       </div>
       <div class="verdict" id="verdict"><span class="muted">Cargá la caja para ver el cuadre.</span></div>
+      <div class="note" id="cajaResumen"></div>
     </section>
 
     <section class="card">
@@ -318,6 +319,7 @@ function render(){datePick.value=fecha;dateTxt.textContent=new Date(fecha+'T12:0
  <td class="num"><input class="cell-input" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="contar" value="${it.sob===null?'':it.sob}" data-id="${p.id}" data-k="sob" data-nav="sob" ${d.closed?'disabled':''}></td>
  <td class="num"><input class="cell-input" type="text" inputmode="numeric" pattern="[0-9]*" value="${it.av||''}" data-id="${p.id}" data-k="av" data-nav="av" ${d.closed?'disabled':''}></td>
  <td class="num ${c.invalid?'badtxt':c.vend===null?'muted':'oktxt'}">${c.invalid?'ERROR':c.vend===null?'—':c.vend}</td>
+ <td class="num" data-caja="${p.id}" data-vend="${c.vend===null?'':c.vend}"></td>
  <td class="num ${c.invalid?'badtxt':''}">${c.total===null?'—':money(c.total).replace('₲ ','')}</td></tr>`}).join('');
  function commitCell(el){
    let raw=String(el.value||'').replace(/\D/g,'');
@@ -369,7 +371,24 @@ function render(){datePick.value=fecha;dateTxt.textContent=new Date(fecha+'T12:0
    };
  });
  renderCash();
+ if(caja.fecha!==fecha)loadCaja();else paintCaja();
 }
+// Ventas cobradas en la Caja de asaditos (caja-asaditos.html), solo lectura: se comparan con lo contado.
+const CAJA_MET={ef:'Efectivo',pos:'POS',tr:'Transferencias',py:'Pedidos Ya',mo:'Monchis'};
+let caja={fecha:null,porProd:{},porMet:{},n:0};
+async function loadCaja(){
+ if(!sessionToken||!cloudLoaded){paintCaja();return}
+ const f=fecha;caja={fecha:f,porProd:{},porMet:{},n:0};paintCaja();
+ try{const out=await apiCall('ventas',{fecha:f});if(fecha!==f)return;
+  (out.ventas||[]).filter(v=>!v.anulada).forEach(v=>{caja.n++;caja.porMet[v.metodo]=(caja.porMet[v.metodo]||0)+(+v.total||0);(v.items||[]).forEach(i=>{caja.porProd[i.id]=(caja.porProd[i.id]||0)+(+i.cant||0)})});
+  paintCaja()}catch(e){console.warn(e)}
+}
+function paintCaja(){
+ document.querySelectorAll('[data-caja]').forEach(td=>{const n=caja.porProd[td.dataset.caja]||0,v=td.dataset.vend;td.textContent=caja.n?n:'—';td.className='num '+(!caja.n?'muted':v===''?'':+v===n?'oktxt':'warntxt');td.title=caja.n&&v!==''&&+v!==n?'Diferencia con lo contado: '+(+v-n):''});
+ const tot=Object.values(caja.porMet).reduce((a,b)=>a+b,0);
+ cajaResumen.innerHTML=caja.n?'<b>Caja de asaditos:</b> '+caja.n+' ticket(s) · '+money(tot)+'<br>'+Object.entries(caja.porMet).map(([k,v])=>(CAJA_MET[k]||k)+' '+money(v)).join(' · '):'';
+}
+setInterval(()=>{if(fecha===todayISO()&&!document.hidden)loadCaja()},60000);
 function totals(){let vend=0,venta=0,gan=0,dispUnits=0,dispValue=0,invalid=false,pending=0;db.products.filter(p=>p.active!==false).forEach(p=>{const c=calc(p);dispUnits+=c.disp;dispValue+=c.disp*c.price;if(c.invalid)invalid=true;if(c.vend===null){if(c.disp>0)pending++;return}vend+=c.vend;venta+=c.total;gan+=c.gan});const gastos=day().cash.expenses.reduce((a,b)=>a+(+b.amount||0),0);return {vend,venta,gan,dispUnits,dispValue,gastos,invalid,pending}}
 function refreshCashDerived(){
  const d=day(),c=d.cash,t=totals();

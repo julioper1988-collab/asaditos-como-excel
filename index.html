@@ -113,6 +113,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}.prod-name{font
       <div class="section" style="padding-top:0">
         <div class="line"><span>Venta del día</span><b id="cVenta">₲ 0</b></div>
         <div class="line"><span>− Cobrado sin efectivo</span><b id="cNoEf">₲ 0</b></div>
+        <div class="line"><span>− Consumo Chompi / Mirna (caja)</span><b id="cConsumo">₲ 0</b></div>
         <div class="line"><span>− Gastos de caja</span><b id="cGastos">₲ 0</b></div>
         <div class="line"><span>+ Sencillo</span><b id="cSe">₲ 0</b></div>
         <div class="line"><span>Efectivo esperado</span><b id="cEsperado">₲ 0</b></div>
@@ -374,7 +375,8 @@ function render(){datePick.value=fecha;dateTxt.textContent=new Date(fecha+'T12:0
  if(caja.fecha!==fecha)loadCaja();else paintCaja();
 }
 // Ventas cobradas en la Caja de asaditos (caja-asaditos.html), solo lectura: se comparan con lo contado.
-const CAJA_MET={ef:'Efectivo',pos:'POS',tr:'Transferencias',py:'Pedidos Ya',mo:'Monchis'};
+const CAJA_MET={ef:'Efectivo',pos:'POS',tr:'Transferencias',py:'Pedidos Ya',mo:'Monchis',ch:'Chompi',mi:'Mirna'};
+const cajaConsumo=()=>(caja.porMet.ch||0)+(caja.porMet.mi||0); // Chompi y Mirna consumen sin pagar
 let caja={fecha:null,porProd:{},porMet:{},n:0};
 async function loadCaja(){
  if(!sessionToken||!cloudLoaded){paintCaja();return}
@@ -386,6 +388,7 @@ async function loadCaja(){
 function paintCaja(){
  document.querySelectorAll('[data-caja]').forEach(td=>{const n=caja.porProd[td.dataset.caja]||0,v=td.dataset.vend;td.textContent=caja.n?n:'—';td.className='num '+(!caja.n?'muted':v===''?'':+v===n?'oktxt':'warntxt');td.title=caja.n&&v!==''&&+v!==n?'Diferencia con lo contado: '+(+v-n):''});
  const tot=Object.values(caja.porMet).reduce((a,b)=>a+b,0);
+ refreshCashDerived();
  cajaResumen.innerHTML=caja.n?'<b>Caja de asaditos:</b> '+caja.n+' ticket(s) · '+money(tot)+'<br>'+Object.entries(caja.porMet).map(([k,v])=>(CAJA_MET[k]||k)+' '+money(v)).join(' · '):'';
 }
 setInterval(()=>{if(fecha===todayISO()&&!document.hidden)loadCaja()},60000);
@@ -394,8 +397,8 @@ function refreshCashDerived(){
  const d=day(),c=d.cash,t=totals();
  kDispUnits.textContent=t.dispUnits.toLocaleString('es-PY');kDispValue.textContent=money(t.dispValue);
  kVend.textContent=t.vend;kVenta.textContent=money(t.venta);kGan.textContent=money(t.gan);kResultado.textContent=money(t.gastos);
- const noEf=(+c.pos||0)+(+c.tr||0)+(+c.py||0)+(+c.mo||0),esp=t.venta-noEf-t.gastos+(+c.se||0),dif=(+c.ef||0)-esp;
- cVenta.textContent=money(t.venta);cNoEf.textContent=money(noEf);cGastos.textContent=money(t.gastos);cSe.textContent=money(c.se||0);cEsperado.textContent=money(esp);cContado.textContent=money(c.ef||0);
+ const noEf=(+c.pos||0)+(+c.tr||0)+(+c.py||0)+(+c.mo||0),cons=cajaConsumo(),esp=t.venta-noEf-cons-t.gastos+(+c.se||0),dif=(+c.ef||0)-esp;
+ cVenta.textContent=money(t.venta);cNoEf.textContent=money(noEf);cConsumo.textContent=money(cons);cGastos.textContent=money(t.gastos);cSe.textContent=money(c.se||0);cEsperado.textContent=money(esp);cContado.textContent=money(c.ef||0);
  verdict.className='verdict '+(Math.abs(dif)<1?'ok':dif<0?'bad':'warn');
  verdict.innerHTML=(t.pending||t.invalid)?`<span class="warntxt">Venta todavía pendiente</span><strong>${t.invalid?'Hay filas con error':t.pending+' producto(s) sin contar'}</strong>`:Math.abs(dif)<1?'<span>✓</span><strong>Caja cuadrada</strong>':dif<0?`<span>Faltó</span><strong>${money(Math.abs(dif))}</strong>`:`<span>Sobró</span><strong>${money(dif)}</strong>`;
  expenseTotal.textContent=money(c.expenses.reduce((a,b)=>a+(+b.amount||0),0));

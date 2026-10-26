@@ -118,6 +118,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}.prod-name{font
         <div class="line"><span>+ Sencillo</span><b id="cSe">₲ 0</b></div>
         <div class="line"><span>Efectivo esperado</span><b id="cEsperado">₲ 0</b></div>
         <div class="line"><span>Efectivo contado</span><b id="cContado">₲ 0</b></div>
+        <div class="line" id="cCajaLine" style="display:none"><span>Contado en la caja <small class="muted" id="cCajaHora"></small></span><b id="cCajaCont">₲ 0</b></div>
       </div>
       <div class="verdict" id="verdict"><span class="muted">Cargá la caja para ver el cuadre.</span></div>
       <div class="note" id="cajaResumen"></div>
@@ -380,8 +381,8 @@ const cajaConsumo=()=>(caja.porMet.ch||0)+(caja.porMet.mi||0); // Chompi y Mirna
 let caja={fecha:null,porProd:{},porMet:{},n:0};
 async function loadCaja(){
  if(!sessionToken||!cloudLoaded){paintCaja();return}
- const f=fecha;caja={fecha:f,porProd:{},porMet:{},n:0};paintCaja();
- try{const out=await apiCall('ventas',{fecha:f});if(fecha!==f)return;
+ const f=fecha;caja={fecha:f,porProd:{},porMet:{},n:0,conteo:null};paintCaja();
+ try{const out=await apiCall('ventas',{fecha:f});if(fecha!==f)return;caja.conteo=out.conteo||null;
   (out.ventas||[]).filter(v=>!v.anulada).forEach(v=>{caja.n++;caja.porMet[v.metodo]=(caja.porMet[v.metodo]||0)+(+v.total||0);(v.items||[]).forEach(i=>{caja.porProd[i.id]=(caja.porProd[i.id]||0)+(+i.cant||0)})});
   paintCaja()}catch(e){console.warn(e)}
 }
@@ -398,7 +399,9 @@ function refreshCashDerived(){
  kDispUnits.textContent=t.dispUnits.toLocaleString('es-PY');kDispValue.textContent=money(t.dispValue);
  kVend.textContent=t.vend;kVenta.textContent=money(t.venta);kGan.textContent=money(t.gan);kResultado.textContent=money(t.gastos);
  const noEf=(+c.pos||0)+(+c.tr||0)+(+c.py||0)+(+c.mo||0),cons=cajaConsumo(),esp=t.venta-noEf-cons-t.gastos+(+c.se||0),dif=(+c.ef||0)-esp;
- cVenta.textContent=money(t.venta);cNoEf.textContent=money(noEf);cConsumo.textContent=money(cons);cGastos.textContent=money(t.gastos);cSe.textContent=money(c.se||0);cEsperado.textContent=money(esp);cContado.textContent=money(c.ef||0);
+ cVenta.textContent=money(t.venta);cNoEf.textContent=money(noEf);cConsumo.textContent=money(cons);cGastos.textContent=money(t.gastos);cSe.textContent=money(c.se||0);cEsperado.textContent=money(esp);
+ // Conteo hecho por el empleado en la caja (último de la noche) y su diferencia con lo esperado
+ const cc=caja.conteo;cCajaLine.style.display=cc?'':'none';if(cc){const dc=(+cc.total||0)-esp;cCajaHora.textContent='('+(cc.usuario||'')+' '+new Date(cc.created_at).toLocaleTimeString('es-PY',{hour:'2-digit',minute:'2-digit'})+')';cCajaCont.innerHTML=money(cc.total)+(Math.abs(dc)<1?' <span class="oktxt">✓</span>':` <span class="${dc<0?'badtxt':'warntxt'}">${dc<0?'falta':'sobra'} ${money(Math.abs(dc))}</span>`)}cContado.textContent=money(c.ef||0);
  verdict.className='verdict '+(Math.abs(dif)<1?'ok':dif<0?'bad':'warn');
  verdict.innerHTML=(t.pending||t.invalid)?`<span class="warntxt">Venta todavía pendiente</span><strong>${t.invalid?'Hay filas con error':t.pending+' producto(s) sin contar'}</strong>`:Math.abs(dif)<1?'<span>✓</span><strong>Caja cuadrada</strong>':dif<0?`<span>Faltó</span><strong>${money(Math.abs(dif))}</strong>`:`<span>Sobró</span><strong>${money(dif)}</strong>`;
  expenseTotal.textContent=money(c.expenses.reduce((a,b)=>a+(+b.amount||0),0));

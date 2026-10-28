@@ -148,6 +148,12 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}.prod-name{font
     <div class="auth-error" id="loginError"></div>
   </div>
 </div>
+<div class="modal" id="ticketsModal">
+  <div class="modal-box">
+    <div class="modal-h"><h2>Tickets de la caja</h2><div class="spacer"></div><button class="btn" id="ticketsClose">Cerrar</button></div>
+    <div id="ticketsList" style="padding:0 14px 14px"></div>
+  </div>
+</div>
 <div class="modal" id="costModal">
   <div class="modal-box">
     <div class="modal-h"><h2>Costos de productos</h2><div class="spacer"></div><button class="btn" id="costClose">Cerrar</button></div>
@@ -381,8 +387,8 @@ const cajaConsumo=()=>(caja.porMet.ch||0)+(caja.porMet.mi||0); // Chompi y Mirna
 let caja={fecha:null,porProd:{},porMet:{},n:0};
 async function loadCaja(){
  if(!sessionToken||!cloudLoaded){paintCaja();return}
- const f=fecha;caja={fecha:f,porProd:{},porMet:{},n:0,conteo:null};paintCaja();
- try{const out=await apiCall('ventas',{fecha:f});if(fecha!==f)return;caja.conteo=out.conteo||null;
+ const f=fecha;caja={fecha:f,porProd:{},porMet:{},n:0,conteo:null,ventas:[]};paintCaja();
+ try{const out=await apiCall('ventas',{fecha:f});if(fecha!==f)return;caja.conteo=out.conteo||null;caja.ventas=out.ventas||[];
   (out.ventas||[]).filter(v=>!v.anulada).forEach(v=>{caja.n++;caja.porMet[v.metodo]=(caja.porMet[v.metodo]||0)+(+v.total||0);(v.items||[]).forEach(i=>{caja.porProd[i.id]=(caja.porProd[i.id]||0)+(+i.cant||0)})});
   paintCaja()}catch(e){console.warn(e)}
 }
@@ -390,8 +396,17 @@ function paintCaja(){
  document.querySelectorAll('[data-caja]').forEach(td=>{const n=caja.porProd[td.dataset.caja]||0,v=td.dataset.vend;td.textContent=caja.n?n:'—';td.className='num '+(!caja.n?'muted':v===''?'':+v===n?'oktxt':'warntxt');td.title=caja.n&&v!==''&&+v!==n?'Diferencia con lo contado: '+(+v-n):''});
  const tot=Object.values(caja.porMet).reduce((a,b)=>a+b,0);
  refreshCashDerived();
- cajaResumen.innerHTML=caja.n?'<b>Caja de asaditos:</b> '+caja.n+' ticket(s) · '+money(tot)+'<br>'+Object.entries(caja.porMet).map(([k,v])=>(CAJA_MET[k]||k)+' '+money(v)).join(' · '):'';
+ cajaResumen.innerHTML=caja.n?'<b>Caja de asaditos:</b> '+caja.n+' ticket(s) · '+money(tot)+'<br>'+Object.entries(caja.porMet).map(([k,v])=>(CAJA_MET[k]||k)+' '+money(v)).join(' · ')+'<br><button class="btn" id="verTickets" style="margin-top:6px">Ver tickets</button>':'';
 }
+// Historial: tickets (y conteo) de la caja para la fecha elegida
+function renderTickets(){
+ const hora=t=>new Date(t).toLocaleTimeString('es-PY',{hour:'2-digit',minute:'2-digit'}),cc=caja.conteo;
+ ticketsList.innerHTML='<div class="muted" style="margin:6px 0 10px">'+fmtLong(caja.fecha)+'</div>'+
+  caja.ventas.map(v=>`<div class="line" style="${v.anulada?'opacity:.45;text-decoration:line-through':''}"><span><span class="muted">${hora(v.created_at)}</span> ${(v.items||[]).map(i=>i.cant+'× '+escapeHtml(i.nombre)).join(', ')} · ${CAJA_MET[v.metodo]||v.metodo}${v.anulada?' (anulado)':''}</span><b>${money(v.total)}</b></div>`).join('')+
+  (cc?`<div class="line"><span><b>Conteo de efectivo</b> <span class="muted">${escapeHtml(cc.usuario||'')} ${hora(cc.created_at)}</span><br><span class="muted">${Object.entries(cc.billetes||{}).sort((a,b)=>b[0]-a[0]).map(([d,n])=>n+'× '+money(+d)).join(' · ')}</span></span><b>${money(cc.total)}</b></div>`:'');
+}
+document.addEventListener('click',e=>{if(e.target.id==='verTickets'){renderTickets();ticketsModal.classList.add('on')}});
+ticketsClose.onclick=()=>ticketsModal.classList.remove('on');ticketsModal.onclick=e=>{if(e.target===ticketsModal)ticketsModal.classList.remove('on')};
 setInterval(()=>{if(fecha===todayISO()&&!document.hidden)loadCaja()},60000);
 function totals(){let vend=0,venta=0,gan=0,dispUnits=0,dispValue=0,invalid=false,pending=0;db.products.filter(p=>p.active!==false).forEach(p=>{const c=calc(p);dispUnits+=c.disp;dispValue+=c.disp*c.price;if(c.invalid)invalid=true;if(c.vend===null){if(c.disp>0)pending++;return}vend+=c.vend;venta+=c.total;gan+=c.gan});const gastos=day().cash.expenses.reduce((a,b)=>a+(+b.amount||0),0);return {vend,venta,gan,dispUnits,dispValue,gastos,invalid,pending}}
 function refreshCashDerived(){

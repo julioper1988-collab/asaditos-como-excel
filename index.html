@@ -402,7 +402,10 @@ function paintCaja(){
 function renderTickets(){
  const hora=t=>new Date(t).toLocaleTimeString('es-PY',{hour:'2-digit',minute:'2-digit'}),cc=caja.conteo;
  ticketsList.innerHTML='<div class="muted" style="margin:6px 0 10px">'+fmtLong(caja.fecha)+'</div>'+
-  caja.ventas.map(v=>`<div class="line" style="${v.anulada?'opacity:.45;text-decoration:line-through':''}"><span><span class="muted">${hora(v.created_at)}</span> ${(v.items||[]).map(i=>i.cant+'× '+escapeHtml(i.nombre)).join(', ')} · ${CAJA_MET[v.metodo]||v.metodo}${v.anulada?' (anulado)':''}</span><b>${money(v.total)}</b></div>`).join('')+
+  // Agrupados por forma de pago (con subtotal); los anulados van aparte al final
+  [...Object.keys(CAJA_MET),'anulado'].map(k=>{const vs=caja.ventas.filter(v=>k==='anulado'?v.anulada:!v.anulada&&v.metodo===k);if(!vs.length)return '';
+   return `<div class="line" style="margin-top:10px;border-bottom:2px solid var(--line)"><b>${k==='anulado'?'Anulados':CAJA_MET[k]} <span class="muted">(${vs.length})</span></b><b>${k==='anulado'?'':money(vs.reduce((a,v)=>a+(+v.total||0),0))}</b></div>`+
+    vs.map(v=>`<div class="line" style="${v.anulada?'opacity:.45;text-decoration:line-through':''}"><span><span class="muted">${hora(v.created_at)}</span> ${(v.items||[]).map(i=>i.cant+'× '+escapeHtml(i.nombre)).join(', ')}${v.anulada?' · '+(CAJA_MET[v.metodo]||v.metodo):''}</span><b>${money(v.total)}</b></div>`).join('')}).join('')+
   (cc?`<div class="line"><span><b>Conteo de efectivo</b> <span class="muted">${escapeHtml(cc.usuario||'')} ${hora(cc.created_at)}</span><br><span class="muted">${Object.entries(cc.billetes||{}).sort((a,b)=>b[0]-a[0]).map(([d,n])=>n+'× '+money(+d)).join(' · ')}</span></span><b>${money(cc.total)}</b></div>`:'');
 }
 document.addEventListener('click',e=>{if(e.target.id==='verTickets'){renderTickets();ticketsModal.classList.add('on')}});

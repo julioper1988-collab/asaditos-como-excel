@@ -113,7 +113,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}.prod-name{font
       <div class="section" style="padding-top:0">
         <div class="line"><span>Venta del día</span><b id="cVenta">₲ 0</b></div>
         <div class="line"><span>− Cobrado sin efectivo</span><b id="cNoEf">₲ 0</b></div>
-        <div class="line"><span>− Consumo Chompi / Mirna (caja)</span><b id="cConsumo">₲ 0</b></div>
+        <div class="line"><span>− Consumo Chompi / Mirna / Julio (caja)</span><b id="cConsumo">₲ 0</b></div>
         <div class="line"><span>− Gastos de caja</span><b id="cGastos">₲ 0</b></div>
         <div class="line"><span>+ Sencillo</span><b id="cSe">₲ 0</b></div>
         <div class="line"><span>Efectivo esperado</span><b id="cEsperado">₲ 0</b></div>
@@ -382,8 +382,8 @@ function render(){datePick.value=fecha;dateTxt.textContent=new Date(fecha+'T12:0
  if(caja.fecha!==fecha)loadCaja();else paintCaja();
 }
 // Ventas cobradas en la Caja de asaditos (caja-asaditos.html), solo lectura: se comparan con lo contado.
-const CAJA_MET={ef:'Efectivo',pos:'POS',tr:'Transferencias',py:'Pedidos Ya',mo:'Monchis',ch:'Chompi',mi:'Mirna'};
-const cajaConsumo=()=>(caja.porMet.ch||0)+(caja.porMet.mi||0); // Chompi y Mirna consumen sin pagar
+const CAJA_MET={ef:'Efectivo',pos:'POS',tr:'Transferencias',py:'Pedidos Ya',mo:'Monchis',ch:'Chompi',mi:'Mirna',ju:'Julio'};
+const cajaConsumo=()=>(caja.porMet.ch||0)+(caja.porMet.mi||0)+(caja.porMet.ju||0); // Chompi, Mirna y Julio consumen sin pagar
 let caja={fecha:null,porProd:{},porMet:{},n:0};
 async function loadCaja(){
  if(!sessionToken||!cloudLoaded){paintCaja();return}

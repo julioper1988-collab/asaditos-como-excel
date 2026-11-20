@@ -210,8 +210,9 @@ const API_URL=SUPABASE_URL+'/functions/v1/asaditos-v2-api';
 const SESSION_KEY='asaditos_v2_session_token';
 const MIGRATION_KEY='asaditos_v2_local_migrated_v1';
 const LEGACY_BACKUP_KEY='asaditos_v2_legacy_backup_v1';
+const BASE_KEY='asaditos_v2_cloud_base_v1';
 const cloudConfigured=SUPABASE_URL.startsWith('https://')&&!SUPABASE_URL.includes('PEGA_AQUI')&&!SUPABASE_PUBLISHABLE_KEY.includes('PEGA_AQUI');
-let db=loadLocal(); let fecha=todayISO(); let currentUser=null; let sessionToken=localStorage.getItem(SESSION_KEY)||''; let cloudTimer=null; let cloudLoaded=false; let cloudWriting=false;
+let db=loadLocal(); let fecha=todayISO(); let currentUser=null; let sessionToken=localStorage.getItem(SESSION_KEY)||''; let cloudTimer=null; let cloudLoaded=false; let cloudWriting=false; let cloudVersion=null; let baseDb=null; let cloudPending=false;
 lockLegacyClosedSnapshots();
 function todayISO(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
 function money(n){return '₲ '+Math.round(n||0).toLocaleString('es-PY')}
@@ -223,7 +224,7 @@ function setSyncState(text,kind=''){saveState.textContent=text;saveState.classLi
 async function apiCall(action,payload={}){
   const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify({action,token:sessionToken,...payload})});
   let out={};try{out=await res.json()}catch(e){}
-  if(!res.ok)throw new Error(out.error||'Error de conexión');
+  if(!res.ok){const err=new Error(out.error||'Error de conexión');err.status=res.status;err.out=out;throw err}
   return out;
 }
 function save(){
@@ -231,12 +232,64 @@ function save(){
   if(sessionToken&&cloudLoaded){setSyncState('Guardando…');clearTimeout(cloudTimer);cloudTimer=setTimeout(()=>flushCloudSave(),350)}
   else setSyncState('Guardado local');
 }
+const clone=x=>JSON.parse(JSON.stringify(x));
+const isObj=x=>x&&typeof x==='object'&&!Array.isArray(x);
+// Fusión de 3 vías: aplica sobre lo remoto lo que este dispositivo cambió respecto de la base.
+function merge3(b,l,r){
+  const J=JSON.stringify;
+  if(J(l)===J(b))return r;
+  if(J(r)===J(b)||J(l)===J(r))return l;
+  const byId=a=>Array.isArray(a)&&a.every(x=>isObj(x)&&x.id!=null);
+  if(byId(l)&&byId(r)&&(b===undefined||byId(b))){
+    const m=a=>Object.fromEntries((a||[]).map(x=>[x.id,x]));
+    const o=merge3(m(b),m(l),m(r)), ids=[...r.map(x=>x.id),...l.map(x=>x.id)];
+    return [...new Set(ids)].filter(id=>id in o).map(id=>o[id]);
+  }
+  if(!isObj(l)||!isObj(r))return l;
+  const bb=isObj(b)?b:{}, out={};
+  new Set([...Object.keys(l),...Object.keys(r)]).forEach(k=>{
+    const inL=k in l, inR=k in r, inB=k in bb;
+    if(!inL&&inB){if(J(r[k])!==J(bb[k]))out[k]=r[k];return}
+    if(!inR&&inB){if(J(l[k])!==J(bb[k]))out[k]=l[k];return}
+    if(!inR){out[k]=l[k];return}
+    if(!inL){out[k]=r[k];return}
+    out[k]=merge3(bb[k],l[k],r[k]);
+  });
+  return out;
+}
+function setBase(data,version){
+  baseDb=clone(data); cloudVersion=version;
+  try{localStorage.setItem(BASE_KEY,JSON.stringify({v:version,data:baseDb}))}catch(e){}
+}
+function applyRemote(data,version){
+  db=merge3(baseDb||data,db,data); setBase(data,version); saveLocal();
+}
 async function flushCloudSave(){
-  if(!sessionToken||!cloudLoaded||cloudWriting)return;
+  if(!sessionToken||!cloudLoaded)return;
+  if(cloudWriting){cloudPending=true;return}
   cloudWriting=true; setSyncState('Sincronizando…');
-  try{await apiCall('save',{data:db});setSyncState('Supabase ✓','sync-ok')}
+  try{
+    for(let i=0;i<5;i++){
+      const sent=clone(db);
+      try{const out=await apiCall('save',{data:sent,base:cloudVersion});setBase(sent,out.updated_at);break}
+      catch(err){
+        if(err.status!==409||!err.out?.data)throw err;
+        // Otro dispositivo guardó antes: traemos lo suyo, sumamos lo nuestro y reintentamos.
+        applyRemote(err.out.data,err.out.updated_at); render();
+      }
+    }
+    setSyncState('Supabase ✓','sync-ok');
+  }
   catch(err){console.error(err);setSyncState('Error al sincronizar','sync-bad')}
-  finally{cloudWriting=false}
+  finally{cloudWriting=false; if(cloudPending){cloudPending=false;flushCloudSave()}}
+}
+async function pullCloud(){
+  if(!sessionToken||!cloudLoaded||cloudWriting)return;
+  try{
+    const out=await apiCall('load');
+    if(out.data&&out.updated_at!==cloudVersion){applyRemote(out.data,out.updated_at);render()}
+    if(JSON.stringify(db)!==JSON.stringify(baseDb))flushCloudSave();
+  }catch(e){console.warn(e)}
 }
 function rawDayHasData(d){
   if(!d)return false;
@@ -257,29 +310,33 @@ async function loadCloud(){
   const cloud=(out.data&&out.data.products&&out.data.days)?out.data:null;
   const localDays=meaningfulDayCount(local), cloudDays=meaningfulDayCount(cloud);
   const migrated=localStorage.getItem(MIGRATION_KEY)==='1';
+  let base=null;
 
   // Migración segura: si este navegador conserva movimientos del sistema nuevo
   // y la nube todavía no tiene movimientos reales, subimos la copia local completa.
   if(!migrated && localDays>0 && cloudDays===0){
     try{localStorage.setItem(LEGACY_BACKUP_KEY,JSON.stringify(local))}catch(e){}
     db=local;
-    await apiCall('save',{data:db});
+    cloudVersion=(await apiCall('save',{data:db,base:out.updated_at})).updated_at;
     localStorage.setItem(MIGRATION_KEY,'1');
     setSyncState('Datos locales migrados ✓','sync-ok');
   }else if(cloud){
     // Antes de reemplazar una copia local distinta, conservamos un respaldo en el navegador.
     if(localDays>cloudDays){try{localStorage.setItem(LEGACY_BACKUP_KEY,JSON.stringify(local))}catch(e){}}
-    db=cloud; saveLocal();
+    // Si este dispositivo tenía cambios sin subir, se suman a lo de la nube en vez de perderse.
+    let prev=null;try{prev=JSON.parse(localStorage.getItem(BASE_KEY))}catch(e){}
+    db=prev&&prev.data?merge3(prev.data,local,cloud):cloud; saveLocal(); cloudVersion=out.updated_at; base=cloud;
     if(cloudDays>0)localStorage.setItem(MIGRATION_KEY,'1');
   }else{
     db=local&&local.products&&local.days?local:freshDb();
-    saveLocal(); await apiCall('save',{data:db});
+    saveLocal(); cloudVersion=(await apiCall('save',{data:db,base:out.updated_at})).updated_at;
     if(localDays>0)localStorage.setItem(MIGRATION_KEY,'1');
   }
-  saveLocal();
+  saveLocal(); setBase(base||db,cloudVersion);
   lockLegacyClosedSnapshots();cloudLoaded=true;accountBtn.textContent='Salir';authScreen.classList.remove('on');
   if(saveState.textContent!=='Datos locales migrados ✓')setSyncState('Supabase ✓','sync-ok');
   render();
+  if(JSON.stringify(db)!==JSON.stringify(baseDb))flushCloudSave();
 }
 async function initCloud(){
   if(!cloudConfigured){accountBtn.textContent='Configurar Supabase';setSyncState('Falta configurar Supabase','sync-bad');render();return}
@@ -666,6 +723,9 @@ accountBtn.onclick=async()=>{
   else authScreen.classList.add('on');
 };
 window.addEventListener('beforeunload',()=>{saveLocal()});
+// Al volver a la app (celular desbloqueado, cambio de pestaña) traemos lo último de la nube.
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')pullCloud();else flushCloudSave()});
+window.addEventListener('focus',()=>pullCloud());
 initCloud();
 </script>
 </body>
